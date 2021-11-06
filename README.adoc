@@ -1,0 +1,224 @@
+= Rababa Python for diacritization
+
+== Purpose
+
+Rababa Python is used for both:
+
+* Training of the Rababa diacriticization models
+* Conversion of non-diacriticized Arabic into diacriticized Arabic
+  (i.e. running of the Rababa diacriticization models)
+
+== Introduction
+
+Rababa uses deep Learning models for recovering Arabic language diacritics.
+
+Rababa implements the models described in the paper
+https://ieeexplore.ieee.org/document/9274427[Effective Deep Learning Models for Automatic Diacritization of Arabic Text]
+and refers to the implementation models from
+https://github.com/almodhfer/Arabic_Diacritization[almodhfer],
+which we have selected for this project from a list of alternatives listed in
+the README.
+
+Out of the four models that https://github.com/almodhfer[almodhfer] has
+implemented, we selected the simplest and most performant ones:
+
+* The baseline model (`baseline`): consists of 3 bidirectional LSTM layers with
+  optional batch norm layers.
+
+* The CBHG model (`cbhg`): uses only the encoder of the Tacotron-based model
+  with optional post LSTM, and batch norm layers.
+
+
+== Usage
+
+=== Prerequisites
+
+Python version: 3.6+.
+
+Best if you use pyenv:
+
+[source,bash]
+----
+brew install pyenv
+pyenv install 3.7.11
+pyenv local 3.7.11
+# Verify your python version
+python --version
+----
+
+Setup dependencies with:
+
+[source,bash]
+----
+pip install --upgrade pip
+pip install .
+----
+
+
+=== Quickstart
+
+. Setup prerequisites
+
+. Download the released model
+  https://github.com/secryst/rababa-models/releases/download/0.1/2000000-snapshot.pt[here]
+  and place under `python/log_dir/CA_MSA.base.cbhg/models/2000000-snapshot.pt`
+
+. Single sentences and text can now be diacritized as below:
+
+[source,bash]
+----
+python diacritize.py --model_kind "cbhg" --config config/cbhg.yml --text 'قطر'
+python diacritize.py --model_kind "cbhg" --config config/cbhg.yml --text_file relative_path_to_text_file
+----
+
+The maximal string length is set in configs at `600`.
+
+Longer lines need to be broken down, for instance using the library
+introduced in the link:../lib/README.adoc[Ruby quickstart] section.
+
+
+== Training
+
+=== Datasets
+
+* We have chosen the "`Tashkeela processed`" corpus ~2,800,000 sentences:
+** https://github.com/interscript/rababa-tashkeela
+
+Other datasets are discussed in the reviewed literature or in the article
+referenced above.
+
+For training, data needs to be stored in the `data/CA_MSA` directory in such a
+format:
+
+[source,bash]
+----
+> ls data/CA_MSA/*
+--> data/CA_MSA/eval.csv  data/CA_MSA/train.csv  data/CA_MSA/test.csv
+----
+
+For instance:
+
+[source,bash]
+----
+mkdir -p data/CA_MSA
+cd data
+curl -sSL https://github.com/interscript/rababa-tashkeela/archive/refs/tags/v1.0.zip -o tashkeela.zip
+unzip tashkeela.zip
+for d in `ls rababa-tashkeela-1.0/tashkeela_val/*`; do cat $d >> CA_MSA/eval.csv; done
+for d in `ls rababa-tashkeela-1.0/tashkeela_train/*`; do cat $d >> CA_MSA/train.csv; done
+for d in `ls rababa-tashkeela-1.0/tashkeela_test/*`; do cat $d >> CA_MSA/test.csv; done
+----
+
+Alternatively, the dataset can be downloaded at
+[rababa-tashkeela](https://github.com/interscript/rababa-tashkeela).
+
+=== Load Model
+
+Alternatively, trained CBHG models are available under
+https://github.com/secryst/rababa-models[releases].
+
+Models are to be copied as specified in the link just above under:
+
+[source,bash]
+----
+> log_dir/CA_MSA.base.cbhg/models/2000000-snapshot.pt
+----
+
+
+=== Config Files
+
+One can adjust the model configurations in the `/config` repository.
+
+The model configurations are about the layers but also the dataset to be used
+and various other options.
+
+The configuration files are called explicitly in the below applications.
+
+=== Data Preprocessing
+
+The original work cited above allow for both raw and preprocessed.
+
+We go for the simplest raw version here:
+- As mentioned above, corpus must have `test.csv`,
+  `train.csv`, and `valid.csv`.
+
+- Specify that the data is not preprocessed in the config.
+  In that case, each batch will be processed and the text and diacritics
+  will be extracted from the original text.
+
+- You also have to specify the text encoder and the cleaner functions.
+  Two text encoders were included: `BasicArabicEncoder`,
+  `ArabicEncoderWithStartSymbol`.
+
+  Moreover, we have one cleaning function: `valid_arabic_cleaners`, which clean
+  all characters except valid Arabic characters, which include Arabic letters,
+  punctuations, and diacritics.
+
+=== Training
+
+All models config are placed in the config directory.
+
+[source,bash]
+----
+python train.py --model "cbhg" --config config/cbhg.yml
+----
+
+The model will report the WER and DER while training using the
+`diacritization_evaluation` package. The frequency of calculating WER and
+DER can be specified in the config file.
+
+=== Testing
+
+The testing is done in the same way as the training,
+For instance, with the CBHG model on the data in `/data/CA_MSA/test.csv`:
+
+[source,bash]
+----
+python test.py --model 'cbhg' --config config/cbhg.yml
+----
+
+The model will load the last saved model unless you specified it in the config:
+`test_data_path`. The test file is expected to have the correct diacritization!
+
+If the test file name is different than `test.csv`, you
+can add it to the `config: test_file_name`.
+
+=== Diacritize text or files
+
+Single sentences or files can be processed. The code outputs is the diacritized
+text or lines.
+
+[source,bash]
+----
+python diacritize.py --model_kind "cbhg" --config config/cbhg.yml --text 'قطر'
+python diacritize.py --model_kind "cbhg" --config config/cbhg.yml --text_file relative_path_to_text_file
+----
+
+=== Convert CBHG, Python model to ONNX
+
+The last model stored during training is automatically chosen and the ONNX model
+is saved into a hardcoded location:
+
+* `../models-data/diacritization_model.onnx`
+
+==== Run
+
+[source,bash]
+----
+python diacritization_model_to_onnx.py
+----
+
+==== Important parameters
+
+They are hardcoded in the beginning of the script:
+
+* `max_len`:
+** matches max string length, initial model value is given in config.
+** this param allows tuning the model speed and size!
+** the Ruby ../lib/README.md points to resources for preprocessing
+
+* batch_size:
+** the value is given by the original model and its training.
+** this constrain how the ONNX model can be put in production:
+... if > 1, processing single lines involve redundant computations.
+... if > 1, files are processed in batches.
