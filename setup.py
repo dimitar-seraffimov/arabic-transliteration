@@ -9,7 +9,7 @@ with open("README.adoc", "r", encoding="utf-8") as fh:
 PKG_VERSION = "0.1.0"
 
 GIT_TAG = environ.get("GITHUB_REF", "")
-TAG_VERSION = re.match(r'^refs/tags/v([0-9]+\.[0-9a-z]+\.[0-9a-z]+)$', GIT_TAG)
+TAG_VERSION = re.match(r'^refs/tags/v([0-9]+\\.[0-9a-z]+\\.[0-9a-z]+)$', GIT_TAG)
 
 if TAG_VERSION:
     PKG_VERSION = TAG_VERSION.group(1)
@@ -21,7 +21,7 @@ setuptools.setup(
     author_email="open.source@ribose.com",
     license='MIT',
     description='Rababa for Arabic diacriticization',
-    # packages=['rababa'],
+    packages=setuptools.find_packages(), # Use find_packages() to automatically find packages
     url='https://www.interscript.org',
     python_requires='>=3.6, <4',
     project_urls={
@@ -30,7 +30,7 @@ setuptools.setup(
         'Tracker': 'https://github.com/interscript/rababa/issues',
     },
     install_requires=[
-      'torch>=1.9.0',
+      'torch',
       'numpy',
       'matplotlib',
       'pandas',
@@ -42,11 +42,5 @@ setuptools.setup(
       'onnxruntime',
       'pyyaml',
     ],
-    # extras_require={'plotting': ['matplotlib>=2.2.0', 'jupyter']},
-    setup_requires=['pytest-runner'],
-    tests_require=['pytest'],
-    # entry_points={
-    #     'console_scripts': ['my-command=exampleproject.example:main']
-    # },
-    # package_data={'exampleproject': ['data/schema.json']}
+    setup_requires=['setuptools', 'wheel'], # Removed 'pytest-runner', kept essential build tools
 )
