@@ -43,5 +43,4 @@ setuptools.setup(
       'pyyaml',
     ],
     setup_requires=['setuptools', 'wheel'], # Removed 'pytest-runner', kept essential build tools
-    tests_require=['pytest'],
 )
